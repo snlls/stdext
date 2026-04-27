@@ -1,6 +1,6 @@
-#include <ccpsx/delayedcall.h>
-#include <ccpsx/thread.h>
-#include <ccpsx/timespec.h>
+#include <stdext/delayedcall.h>
+#include <stdext/thread.h>
+#include <stdext/timespec.h>
 #include <stdio.h>
 #include <stdlib.h>
 

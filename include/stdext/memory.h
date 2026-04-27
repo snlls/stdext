@@ -3,20 +3,20 @@
 #include <stdlib.h>
 #include <threads.h>
 
-static void cc_memory_fault_handler_default()
+static void ext_memory_fault_handler_default()
 {
 	abort();
 }
 
-extern void (*cc_memory_fault_handler)();
+extern void (*ext_memory_fault_handler)();
 
 /** @brief calloc memory, if this fails it calls error handler, default handler aborts. */
 static inline void *ext_alloc(size_t size)
 {
 	void *p = calloc(1, size);
 	if(!p) {
-		if(cc_memory_fault_handler) {
-			cc_memory_fault_handler();
+		if(ext_memory_fault_handler) {
+			ext_memory_fault_handler();
 		}
 	}
 	return p;

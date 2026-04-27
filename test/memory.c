@@ -1,4 +1,4 @@
-#include <ccpsx/memory.h>
+#include <stdext/memory.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,9 +14,9 @@ void memory_test_failed_fn() { memory_test_failed = 1; }
 int memory_test()
 {
 	int errors = 0;
-	allocator a;
-	cc_memory_fault_handler = memory_test_failed_fn;
-	void *pfail = cc_alloc(LONG_MAX);
+	allocator a;	
+	ext_memory_fault_handler = memory_test_failed_fn;
+	void *pfail = ext_alloc(LONG_MAX);
 	if(pfail || !memory_test_failed) {
 		elog("memory fail test failed p=%p flag=%d", pfail, memory_test_failed);
 	}

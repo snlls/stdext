@@ -1,6 +1,6 @@
-#include <ccpsx/semaphore.h>
-#include <ccpsx/thread.h>
-#include <ccpsx/timespec.h>
+#include <stdext/semaphore.h>
+#include <stdext/thread.h>
+#include <stdext/timespec.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>

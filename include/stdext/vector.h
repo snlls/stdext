@@ -1,3 +1,4 @@
+#pragma once
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -39,10 +40,6 @@ void test() {
 
 #define VECTOR_INIT_SIZE 4
 
-typedef struct {
-	unsigned size;
-} vector;
-
 #define vector(type)                                                           \
   struct {                                                                     \
     unsigned allocated;                                                        \
@@ -60,21 +57,35 @@ typedef struct {
 		(vecptr)->current = 0;		\
 	} while(0)
 
-/** @brief initial size or sophisticated algorithm for new vector size */
-#define vector_new_size(size) ((size) ? (size * 2) : ((4096 / (size)) < VECTOR_INIT_SIZE ? VECTOR_INIT_SIZE : (4096 / (size))))
-
 /** @brief update size values if realloc worked.
     @return original pointer or new pointer.
 */
 static void *vector_try_resize(void *data, unsigned *allocated, unsigned type_size)
 {
-	unsigned newsize = vector_new_size(*allocated);
-	void *tmp = realloc(data, newsize * type_size);
-	if(tmp) {
-		*allocated = newsize;
-		return tmp;
+	unsigned newsize;
+	if(!(*allocated)) {
+		newsize = VECTOR_INIT_SIZE;
 	}
-	return data;
+	else {
+		newsize = *allocated * 2;
+	}
+	void *tmp = 0;
+	if(!data) {
+		tmp = calloc(newsize, type_size);
+	}
+	else {
+		tmp = realloc(data, newsize * type_size);
+		if(tmp) {
+			char *ptr = tmp;
+			ptr += (*allocated * type_size);
+			memset(ptr, 0, (newsize - *allocated) * type_size);
+		}
+	}
+	if(!tmp)
+		return data;
+	
+	*allocated = newsize;
+	return tmp;
 }
 
 /** @brief return first free slot and increment counter */
@@ -103,7 +114,11 @@ static void *vector_try_resize(void *data, unsigned *allocated, unsigned type_si
 #define vector_length(vecptr) (vecptr)->current
 
 /** @brief get pointer to n element or NULL */
-#define vector_get(vecptr, n) (((n) < (vecptr)->current && (vecptr)->current) ? (vecptr)->data + (n) : NULL)
+#define vector_get(vecptr, n) (((unsigned)(n) < (vecptr)->current && (vecptr)->current) ? (vecptr)->data + (n) : NULL)
+
+
+/** @brief get pointer to last element or NULL */
+#define vector_get_last(vecptr) (!(vecptr)->current ? NULL : (vecptr)->data + ((vecptr)->current - 1))
 
 
 /** @brief used internally with pop_first
@@ -149,14 +164,14 @@ static bool vector_shift_first_to_last(void *data, unsigned length, unsigned typ
 
 
 /** @brief Remove element at index. Shift all elements after index to left. */
-#define vector_remove(vecptr, index)                                           \
-  do {                                                                         \
-    if (!(vecptr)->current || (vecptr)->current <= (index)) {                  \
-      break;                                                                   \
-    }                                                                          \
-    for (unsigned n = (index); n < (vecptr)->current - 1; n++) {               \
-      (vecptr)->data[n] = (vecptr)->data[n + 1];                               \
-    }                                                                          \
-    (vecptr)->current--;                                                       \
-  } while (0)
+#define vector_remove(vecptr, index)					\
+	do {								\
+		if (!(vecptr)->current || (vecptr)->current <= (index)) { \
+			break;						\
+		}							\
+		for (unsigned Mn = (index); Mn < (vecptr)->current - 1; Mn++) {	\
+			(vecptr)->data[Mn] = (vecptr)->data[Mn + 1];	\
+		}							\
+		(vecptr)->current--;					\
+	} while (0)
 

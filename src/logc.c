@@ -2,29 +2,36 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <string.h>
-#include <stdbool.h>
 #include <syslog.h>
-#include <stdatomic.h>
 #include "stdext/logc.h"
 
-// TODO: add mutex for thread safety?
-#define MODULE_NAME_MAX 32
-static logc_target target = LOGC_TARGET_STDOUT;
-static atomic_bool log_suppress = false;
-static char module[MODULE_NAME_MAX] = "unknown";
-static atomic_bool opened = false;
-static atomic_int log_level = LOG_INFO;
-static atomic_bool log_color = true;
+
+
+void logc_open(logc_state *state, char *name, logc_target target, int log_level)
+{
+	memset(state, 0, sizeof(*state));
+	state->target = target;
+	state->suppress = false;
+	strncpy(state->module, name, sizeof(state->module) - 1);
+	state->opened = true;
+	state->level = log_level;
+	state->color = true;
+	if(target & LOGC_TARGET_SYSLOG) {
+		openlog(state->module, 0, LOG_USER);
+	}
+}
+
+
 
 static char *log_pri_txt[] = {
-	[LOG_EMERG] = "EMERGENCY",
-	[LOG_ALERT] = "ALERT    ",
-	[LOG_CRIT] = "CRITICAL",
-	[LOG_ERR] = "ERROR",
-	[LOG_WARNING] = "WARNING",
-	[LOG_NOTICE] = "NOTICE",
+	[LOG_EMERG] = "EMGR",
+	[LOG_ALERT] = "ALRT",
+	[LOG_CRIT] = "CRIT",
+	[LOG_ERR] = "ERR ",
+	[LOG_WARNING] = "WARN",
+	[LOG_NOTICE] = "NTIC",
 	[LOG_INFO] = "INFO",
-	[LOG_DEBUG] = "DEBUG",
+	[LOG_DEBUG] = "DBUG",
 };
 
 static char *log_pri_color[] = {
@@ -38,51 +45,52 @@ static char *log_pri_color[] = {
 	[LOG_DEBUG] = LOGC_COL_GRN,
 };
 
-void logc_level_set(int level)
+void logc_level_set(logc_state *state, int level)
 {
-	log_level = level;
+	state->level = level;
 }
 
-int logc_level_get()
+int logc_level_get(logc_state *state)
 {
-	return log_level;
+	return state->level;
 }
 
 
-void logc_suppress(int enable_suppress)
+void logc_suppress(logc_state *state, int enable_suppress)
 {
-	log_suppress = enable_suppress;
+	state->suppress = enable_suppress;
 }
 
-void logc_color_enable(bool enable)
+void logc_color_enable(logc_state *state, bool enable)
 {
-	log_color = enable;
+	state->color = enable;
 }
 
-void logc_target_set(logc_target target_in)
+void logc_target_set(logc_state *state, logc_target target_in)
 {
-	if(!opened && target_in == LOGC_TARGET_SYSLOG) {
-		openlog("", 0, LOG_USER);
-		opened = true;
+	if(target_in == state->target)
+		return;
+	
+	if(state->opened) {
+		bool hassys = state->target & LOGC_TARGET_SYSLOG;
+		bool addingsys = target_in & LOGC_TARGET_SYSLOG;
+		if(hassys && !addingsys) {
+			closelog();
+		}
+		if(addingsys && !hassys) {
+			openlog(state->module, 0, LOG_USER);
+		}
 	}
-	target = target_in;
+	state->target = target_in;
 }
 
-void logc_open(const char *name)
-{
-	strncpy(module, name, sizeof(module) - 1);
-	if(!opened && target == LOGC_TARGET_SYSLOG) {
-		opened = true;
-		openlog(module, 0, LOG_USER);
-	}
-}
 
-void logc_close()
+void logc_close(logc_state *state)
 {
-	if(opened) {
+	if(state->opened && state->target == LOGC_TARGET_SYSLOG) {
 		closelog();
-		opened = false;
 	}
+	state->opened = false;
 }
 
 
@@ -99,13 +107,14 @@ static char *priority_to_str(int pri)
 		pri = 0;
 	return log_pri_txt[pri];
 }
-static void logc_va_list(int pri, const char *fmt, va_list args)
+
+static void logc_va_list(logc_state *state, int pri, const char *fmt, va_list args)
 {
-	if(target == LOGC_TARGET_SYSLOG) {
+	if(state->target == LOGC_TARGET_SYSLOG) {
 		syslog(pri, fmt, args);
 	}
 	else {
-		if(log_color) {
+		if(state->color) {
 			printf("%s%s " LOGC_COL_RESET, priority_to_color(pri), priority_to_str(pri));
 		}
 		else {
@@ -117,24 +126,14 @@ static void logc_va_list(int pri, const char *fmt, va_list args)
 	
 }
 
-void logclvl(int pri, int lvl, const char *fmt, ...)
+void logc(logc_state *state, int level, const char *fmt, ...)
 {
 	va_list args;
-	if(log_suppress || pri > lvl) {
+	if(state->suppress || level > state->level) {
 		return;
 	}	
 	va_start(args, fmt);
-	logc_va_list(pri, fmt, args);
+	logc_va_list(state, level, fmt, args);
 	va_end(args);
 }
-
-void logc(int pri, const char *fmt, ...)
-{
-	va_list args;
-	if(log_suppress || pri > log_level) {
-		return;
-	}	
-	va_start(args, fmt);
-	logc_va_list(pri, fmt, args);
-	va_end(args);
-}
+ 

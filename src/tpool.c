@@ -40,16 +40,29 @@ typedef struct {
 static void tpool_task_clear_id(tpool *tp, tpoolid id)
 {
 	mtx_lock(&tp->lock);
-	for(int n = 0; n < vector_length(&tp->tasks); n++) {		
-		if(vector_get(&tp->tasks, n)->id == id) {
+	for(unsigned n = 0; n < vector_length(&tp->tasks); n++) {
+		tpool_task *task = vector_get(&tp->tasks, n);
+		if(task->id == id) {
 			vector_remove(&tp->tasks, n);
 			break;
 		}
-		
 	}
-
 	mtx_unlock(&tp->lock);
 }
+
+static int tpool_state_count(tpool *tp, int state)
+{
+	int ret = 0;
+	mtx_lock(&tp->lock);
+	for(unsigned n = 0; n < tp->tasks.current; n++) {
+		if(tp->tasks.data[n].id > 0 && tp->tasks.data[n].state == state)
+			ret++;
+	}
+	mtx_unlock(&tp->lock);
+	return ret;
+
+}
+
 
 static int tpool_run(void *ptr)
 {
@@ -58,7 +71,7 @@ static int tpool_run(void *ptr)
 		mtx_lock(&tp->lock);
 		int len = vector_length(&tp->tasks);
 		int index = -1;
-		tpool_task task;
+		tpool_task task = {0};
 		for(int n = 0; n < len; n++) {
 			if(vector_get(&tp->tasks, n)->state == TPOOL_TASK_STATE_QUEUE) {
 				vector_get(&tp->tasks, n)->state = TPOOL_TASK_STATE_RUNNING;
@@ -70,16 +83,17 @@ static int tpool_run(void *ptr)
 		mtx_unlock(&tp->lock);
 		if(index >= 0) {
 			void *result = task.function(task.user, &tp->closing);
-			if(vector_get(&tp->tasks, index)->flags & TPOOL_TASK_FLAG_NO_RESULT) {
+			if(task.flags & TPOOL_TASK_FLAG_NO_RESULT) {
 				tpool_task_clear_id(tp, task.id);
 			}
 			else {
 				
 				mtx_lock(&tp->lock);
-				for(int n = 0; n < vector_length(&tp->tasks); n++) {
+				for(unsigned n = 0; n < vector_length(&tp->tasks); n++) {
 					tpool_task *tmp = vector_get(&tp->tasks, n);
 					if(tmp->id == task.id) {
 						tmp->result = result;
+						tmp->state = TPOOL_TASK_STATE_DONE;
 						break;
 					}
 				}
@@ -88,7 +102,7 @@ static int tpool_run(void *ptr)
 			semaphore_signal(&tp->donesem, 1);
 			continue;
 		}
-		semaphore_wait(&tp->dosem, 5000);
+		semaphore_wait(&tp->dosem, 500);
 	}
 	return 0;
 }
@@ -123,7 +137,7 @@ tpool *tpool_create(unsigned threads)
 	semaphore_init(&tp->dosem);
 	semaphore_init(&tp->donesem);
 	int ret;
-	if((ret = mtx_init(&tp->lock, mtx_plain))) {
+	if((ret = mtx_init(&tp->lock, mtx_plain | mtx_recursive))) {
 		return NULL;
 	}
 
@@ -141,14 +155,15 @@ tpoolid tpool_add(tpool *tp, tpool_task_function function, void *userdata, unsig
 		return TPOOLID_INVALID;
 	tpoolid ret = TPOOLID_INVALID;
 	mtx_lock(&tp->lock);
-	tpool_task task;
+	tpool_task task = {0};
 	task.flags = flags;
 	task.function = function;
 	task.state = TPOOL_TASK_STATE_QUEUE;
 	ret = tp->id++;
+	if(!ret) {
+		tp->id++;
+	}
 	task.id = ret;
-	if(ret == TPOOLID_INVALID)
-		goto end;
 
 	task.result = userdata;
 	tpool_task *tmp = vector_add(&tp->tasks);
@@ -165,7 +180,7 @@ unsigned tpool_task_count(tpool *tp)
 		return 0;
 	unsigned ret = 0;
 	mtx_lock(&tp->lock);
-	for(int n = 0; n < vector_length(&tp->tasks); n++) {
+	for(unsigned n = 0; n < vector_length(&tp->tasks); n++) {
 		int state = vector_get(&tp->tasks, n)->state;
 		if(state == TPOOL_TASK_STATE_QUEUE || state == TPOOL_TASK_STATE_RUNNING) {
 			ret++;
@@ -175,15 +190,40 @@ unsigned tpool_task_count(tpool *tp)
 	return ret;
 }
 
+void tpool_wait_until_all_done(tpool *tp)
+{
+	while(true) {
+		bool wait = false;
+		mtx_lock(&tp->lock);
+		for(unsigned n = 0; n < vector_length(&tp->tasks); n++) {
+			tpool_task *task = vector_get(&tp->tasks, n);
+			if(!task->id) {
+				continue;
+			}
+			if(task->state != TPOOL_TASK_STATE_DONE) {
+				wait = true;
+				break;
+			}
+				
+		}
+		mtx_unlock(&tp->lock);
+		if(!wait) {
+			break;
+		}
+		semaphore_wait(&tp->donesem, 200);
+	}
+}
+
+
 void *tpool_wait(tpool *tp, tpoolid id)
 {
 	if(!tp || id == TPOOLID_INVALID)
 		return NULL;
-	void *ret;
+	void *ret = 0;
 	bool done = false;
 	while(!done) {
 		bool wait = false;
-		int n;
+		unsigned n;
 		mtx_lock(&tp->lock);
 		for(n = 0; n < vector_length(&tp->tasks); n++) {
 			tpool_task *tmp = vector_get(&tp->tasks, n);
@@ -198,6 +238,7 @@ void *tpool_wait(tpool *tp, tpoolid id)
 				break;
 			}
 		}
+		
 		mtx_unlock(&tp->lock);
 		if(!done && !wait) {
 			// no task with this id?

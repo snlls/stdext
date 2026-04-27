@@ -1,4 +1,13 @@
+#pragma once
 #include <stdbool.h>
+#include <stdatomic.h>
+#include <threads.h>
+
+#define LOGC_MODULE_NAME_MAX 32
+
+
+struct logc_state;
+typedef struct logc_state logc_state;
 
 typedef enum {
 	LOGC_TARGET_STDOUT = (1 << 0),
@@ -17,43 +26,38 @@ typedef enum {
 #define	LOGC_LVL_DEBUG		7	/* debug-level messages */
 #define	LOGC_LVL_COUNT		8
 
+struct logc_state {
+	logc_target target;
+	atomic_bool suppress;
+	char module[LOGC_MODULE_NAME_MAX];
+	atomic_bool opened;
+	atomic_int level;
+	atomic_bool color;
+};
+
 
 
 /** @param level LOG_EMERG <= level <= LOG_DEBUG */
-void logc_level_set(int level);
+void logc_level_set(logc_state *state, int level);
 
 /** @brief set log suppress, by default logging is enabled */
-void logc_suppress(int enable_suppress);
+void logc_suppress(logc_state *state, int enable_suppress);
 
 /** @brief set logging target, by default log to stdout */
-void logc_target_set(logc_target target_mask);
+void logc_target_set(logc_state *state, logc_target target_mask);
 
 
 /** @brief enable logging colors, by default they are on */
-void logc_color_enable(bool enable);
+void logc_color_enable(logc_state *state, bool enable);
 
-int logc_level_get();
+int logc_level_get(logc_state *state);
 
 /** @brief utility function for logging
  * @param pri priority for syslog.h, LOG_*
  */
-void logc(int pri, const char *fmt, ...);
-
-#define logc_info(fmt, ...) logc(LOGC_LVL_INFO, fmt, ##__VA_ARGS__)
-#define logc_debug(fmt, ...) logc(LOGC_LVL_DEBUG, fmt, ##__VA_ARGS__)
-#define logc_notice(fmt, ...) logc(LOGC_LVL_NOTICE, fmt, ##__VA_ARGS__)
-#define logc_warning(fmt, ...) logc(LOGC_LVL_WARNING, fmt, ##__VA_ARGS__)
-#define logc_err(fmt, ...) logc(LOGC_LVL_ERR, fmt, ##__VA_ARGS__)
-#define logc_crit(fmt, ...) logc(LOGC_LVL_CRIT, fmt, ##__VA_ARGS__)
-#define logc_emerg(fmt, ...) logc(LOGC_LVL_EMERG, fmt, ##__VA_ARGS__)
-
-void logclvl(int pri, int lvl, const char *fmt, ...);
-
-void logc_open(const char *name);
-
-void logc_close();
-
-#define logc_place(pri, fmt, ...) log((pri), "%s:%d " fmt, __func__, __LINE__, ##__VA_ARGS__)
+void logc(logc_state *state, int pri, const char *fmt, ...);
+void logc_close(logc_state *state);
+void logc_open(logc_state *state, char *name, logc_target target, int log_level);
 
 // terminal ansi colors
 

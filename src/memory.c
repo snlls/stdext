@@ -7,7 +7,7 @@
 #include <string.h>
 #include <threads.h>
 
-void (*cc_memory_fault_handler)() = cc_memory_fault_handler_default;
+void (*ext_memory_fault_handler)() = ext_memory_fault_handler_default;
 
 typedef struct allocator_dbg_block allocator_dbg_block;
 struct allocator_dbg_block {
@@ -105,7 +105,7 @@ void *allocator_dbg_alloc(allocator *a, size_t size ALLOCATOR_PROT)
 		}
 		else {
 			perror("allocation failed");
-			cc_memory_fault_handler();
+			ext_memory_fault_handler();
 		}
 		return 0;
 	}
@@ -243,7 +243,7 @@ void *allocator_heap_alloc(allocator *a, size_t s ALLOCATOR_PROT)
 		}
 		else {
 			perror("allocation failed");
-			cc_memory_fault_handler();
+			ext_memory_fault_handler();
 			return 0;
 		}
 	}

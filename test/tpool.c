@@ -1,4 +1,4 @@
-#include <ccpsx/tpool.h>
+#include <stdext/tpool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -25,14 +25,15 @@ int tpool_test()
 		errors++;
 		return errors;
 	}
+
 #define COUNT 100
 	tpoolid ids[COUNT];
 	for(intptr_t n = 0; n < COUNT; n++) {
 		ids[n] = tpool_add(tp, tpool_test_task, (void *)n, TPOOL_TASK_FLAG_NO_RESULT);
 	}
-	for(intptr_t n = 0; n < COUNT; n++) {
-		tpool_wait(tp, ids[n]);
-	}
+	printf("waiting threads\n");
+	tpool_wait_until_all_done(tp);
+	printf("all tasks done\n");
 	if(tpool_test_counter != COUNT) {
 		elog("counter invalid %d expected %d", tpool_test_counter, COUNT);
 		errors++;

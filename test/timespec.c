@@ -1,6 +1,6 @@
-#include <ccpsx/timespec.h>
+#include <stdext/timespec.h>
 #include <stdio.h>
-#include <ccpsx/array.h>
+#include <stdext/array.h>
 #include <stdlib.h>
 
 #define SECNANO 1000000000L
@@ -92,7 +92,7 @@ int timespec_test()
 		specs[n] = timespec_utc();
 		specs[n].tv_nsec = 0;
 		timespec_add_ms(specs + n, n * 1000);
-	}
+	}	
 	array_shuffle(specs);
 	qsort(specs, arrcount, sizeof(specs[0]), &timespec_cmp);
 	for(int n = 0; n < arrcount - 1; n++) {

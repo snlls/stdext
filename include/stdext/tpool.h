@@ -88,3 +88,5 @@ void tpool_wait_and_destroy(tpool *tp);
  */
 void tpool_destroy(tpool *tp);
 
+/** @brief wait until all tasks are done, this does not clean tasks that have results  */
+void tpool_wait_until_all_done(tpool *tp);
