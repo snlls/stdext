@@ -56,6 +56,16 @@ int logc_level_get(logc_state *state);
  * @param pri priority for syslog.h, LOG_*
  */
 void logc(logc_state *state, int pri, const char *fmt, ...);
+#define logc_info(state, fmt, ...) logc(state, LOGC_LVL_INFO, fmt, ##__VA_ARGS__)
+#define logc_crit(state, fmt, ...) logc(state, LOGC_LVL_CRIT, fmt, ##__VA_ARGS__)
+#define logc_alert(state, fmt, ...) logc(state, LOGC_LVL_ALERT, fmt, ##__VA_ARGS__)
+#define logc_dbg(state, fmt, ...) logc(state, LOGC_LVL_DEBUG, fmt, ##__VA_ARGS__)
+#define logc_emerg(state, fmt, ...) logc(state, LOGC_LVL_EMERG, fmt, ##__VA_ARGS__)
+#define logc_warn(state, fmt, ...) logc(state, LOGC_LVL_WARNING, fmt, ##__VA_ARGS__)
+#define logc_notice(state, fmt, ...) logc(state, LOGC_LVL_NOTICE, fmt, ##__VA_ARGS__)
+#define logc_err(state, fmt, ...) logc(state, LOGC_LVL_ERR, fmt, ##__VA_ARGS__)
+
+
 void logc_close(logc_state *state);
 void logc_open(logc_state *state, char *name, logc_target target, int log_level);
 
