@@ -7,6 +7,8 @@ int memory_test();
 int tpool_test();
 int file_test();
 int log_test();
+int objpool_test();
+
 int main()
 {
 	int errors = 0;
@@ -31,7 +33,11 @@ int main()
 	err = file_test();
 	printf("file errors %d\n", err);
 	errors += err;
-
+	
+	err = objpool_test();
+	printf("objpool errors %d\n", err);
+	errors += err;
+	
 	for(int n = 0; n < 5; n++) {
 		printf("semaphore test run %d\n", n);
 		err = semaphore_test();

@@ -129,6 +129,9 @@ static void logc_va_list(logc_state *state, int pri, const char *fmt, va_list ar
 void logc(logc_state *state, int level, const char *fmt, ...)
 {
 	va_list args;
+	if(!state) {
+		return;
+	}
 	if(state->suppress || level > state->level) {
 		return;
 	}	

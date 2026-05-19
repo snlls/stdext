@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include <threads.h>
 
-static void ext_memory_fault_handler_default()
-{
-	abort();
-}
 
 extern void (*ext_memory_fault_handler)();
 

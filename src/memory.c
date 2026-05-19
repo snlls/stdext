@@ -7,6 +7,12 @@
 #include <string.h>
 #include <threads.h>
 
+static void ext_memory_fault_handler_default()
+{
+	abort();
+}
+
+
 void (*ext_memory_fault_handler)() = ext_memory_fault_handler_default;
 
 typedef struct allocator_dbg_block allocator_dbg_block;

@@ -5,7 +5,7 @@ typedef struct {
 	int y;
 } testx;
 
-int test_objpool()
+int objpool_test()
 {
 	objpool(testx) p = {0};
 	printf("filling\n");
@@ -13,6 +13,7 @@ int test_objpool()
 		testx *x = objpool_add(&p);
 		x->x = n;
 		x->y = n;
+		printf("obj n=%d index=%d\n", n, (int)objpool_obj_index(&p, x));
 	}
 	printf("count %d\n", objpool_count(&p));
 	for(int n = 0; n < 4; n++) {
@@ -27,7 +28,8 @@ int test_objpool()
 	}
 	for(unsigned n = 0; n < p.free_slots.current; n++) {
 		printf("%d\n", *vector_get(&p.free_slots, n));
-	}
+	}	
+	
 	objpool_free(&p);
 	
 	return 0;
